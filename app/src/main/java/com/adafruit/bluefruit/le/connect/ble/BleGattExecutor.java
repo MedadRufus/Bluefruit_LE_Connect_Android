@@ -39,6 +39,7 @@ class BleGattExecutor extends BluetoothGattCallback {
         boolean execute(BluetoothGatt bluetoothGatt);
     }
 
+    //Todo 28June2018: figure out how to limit the size of this list to 1.
     private final LinkedList<BleGattExecutor.ServiceAction> mQueue = new LinkedList<ServiceAction>();        // list of actions to execute
     private volatile ServiceAction mCurrentAction;
 

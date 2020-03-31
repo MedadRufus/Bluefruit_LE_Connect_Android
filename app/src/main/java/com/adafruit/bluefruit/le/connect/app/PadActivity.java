@@ -20,6 +20,8 @@ import com.adafruit.bluefruit.le.connect.R;
 import com.adafruit.bluefruit.le.connect.app.settings.PreferencesFragment;
 import com.adafruit.bluefruit.le.connect.ble.BleManager;
 import com.adafruit.bluefruit.le.connect.ble.BleUtils;
+import com.jmedeisis.bugstick.Joystick;
+import com.jmedeisis.bugstick.JoystickListener;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ public class PadActivity extends UartInterfaceActivity {
 
     // Constants
     private final static float kMinAspectRatio = 1.8f;
+    final static String UART_separator = ",";
 
     // UI TextBuffer (refreshing the text buffer is managed with a timer because a lot of changes can arrive really fast and could stall the main thread)
     private Handler mUIRefreshTimerHandler = new Handler();
@@ -51,8 +54,13 @@ public class PadActivity extends UartInterfaceActivity {
     private EditText mBufferTextView;
     private volatile SpannableStringBuilder mTextSpanBuffer;
     private volatile ArrayList<UartDataChunk> mDataBuffer;
-    private DataFragment mRetainedDataFragment;
     private int maxPacketsToPaintAsText;
+    private DataFragment mRetainedDataFragment;
+
+    // current value of joystick and clicked button
+    private volatile double L_val; // Joystick L value
+    private volatile double R_val; // Joystick R value
+    private volatile int Butt_val; // Button value
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +101,93 @@ public class PadActivity extends UartInterfaceActivity {
 
         // Start services
         onServicesDiscovered();
+
+
+        //Joy stick related commands
+
+        final String angleNoneString = getString(R.string.angle_value_none);
+        final String angleValueString = getString(R.string.angle_value);
+        final String offsetNoneString = getString(R.string.offset_value_none);
+        final String offsetValueString = getString(R.string.offset_value);
+
+        //Define joysitck widgets
+        final Joystick joystickL = (Joystick) findViewById(R.id.joystickL);
+        final Joystick joystickR = (Joystick) findViewById(R.id.joystickR);
+
+
+        // The joystick uses a package called bugstick :: https://github.com/justasm/Bugstick
+
+        // Set listener for the Left joystick
+        joystickL.setJoystickListener(new JoystickListener() {
+            @Override
+            public void onDown() {
+            }
+
+            @Override
+            public void onDrag(float degrees, float offset) {
+                // Send coordinates to robot
+                // Polar to Cartesian conversion where x =[-100,100] and y = [-100,100]
+
+                // Create a local variable to see if there is any significant change in
+                // the joystick value
+                double current_L_val;
+                current_L_val  =  (Math.sin(degrees * Math.PI / 180f) * offset)*100;
+
+                // Send message to robot only if value change is significant
+                if ((int)L_val == (int)current_L_val){
+                    return;
+                }
+                else {
+                    // Update the value of the running L value
+                    L_val = current_L_val;
+                    sendTouchEvent((int)L_val,(int)R_val,Butt_val);
+                    Log.d("L_val",String.valueOf((int)L_val));
+                }
+
+            }
+
+            @Override
+            public void onUp() {
+                // Update local coordinate value
+                L_val = 0;
+                // Send coordinates to robot
+                sendTouchEvent((int)L_val,(int)R_val,Butt_val);
+            }
+        });
+
+        // set listener for the Right joystick
+        joystickR.setJoystickListener(new JoystickListener() {
+            @Override
+            public void onDown() {
+            }
+
+            @Override
+            public void onDrag(float degrees, float offset) {
+                // Send coordinates to robot
+                // Polar to Cartesian conversion where x =[-100,100] and y = [-100,100]
+                double current_R_val;
+                current_R_val  =  (Math.sin(degrees * Math.PI / 180f) * offset)*100;
+                // Send message to robot only if value change is significant
+                if ((int)R_val == (int)current_R_val){
+                    return;
+                }
+                else {
+                    // Update the value of the running R value
+                    R_val = current_R_val;
+                    sendTouchEvent((int)L_val,(int)R_val,Butt_val);
+                    Log.d("R_val",String.valueOf((int)R_val));
+                }
+            }
+
+            @Override
+            public void onUp() {
+                // Update local coordinate value
+                R_val = 0;
+                // Send coordinates to robot
+                sendTouchEvent((int)L_val,(int)R_val,Butt_val);
+            }
+        });
+
     }
 
 
@@ -183,22 +278,59 @@ public class PadActivity extends UartInterfaceActivity {
     View.OnTouchListener mPadButtonTouchListener = new View.OnTouchListener() {
         @Override
         public boolean onTouch(View view, MotionEvent event) {
-            final int tag = Integer.valueOf((String) view.getTag());
+            // Set the volatile value of the button as the value of the button clicked
+            Butt_val = Integer.valueOf((String) view.getTag());
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 view.setPressed(true);
-                sendTouchEvent(tag, true);
+                sendTouchEvent((int)L_val,(int)R_val,Butt_val);
                 return true;
             } else if (event.getAction() == MotionEvent.ACTION_UP) {
                 view.setPressed(false);
-                sendTouchEvent(tag, false);
+
+                // Reset the button value to a null value(0) after it is released
+                Butt_val = 0;
+
+                // Update the robot with the released signal
+                sendTouchEvent((int)L_val,(int)R_val,Butt_val);
                 return true;
             }
             return false;
         }
     };
 
-    private void sendTouchEvent(int tag, boolean pressed) {
-        String data = "!B" + tag + (pressed ? "1" : "0");
+
+    /*
+    // This is the old format for sending the message. Still kept here for future reference
+    private void sendTouchEvent(int tag, boolean pressed ,String input_source) {
+
+        // Pad the value of the joystick so that its length is consistent
+        String padded_tag = String.format("%04d", tag);
+        // The contents of the message string is as follows:
+        //!B
+        //padded tag: the value of the joystick or button
+        //input_source: left or right joystick. L for left,R for right, B for one of the buttons
+        String data = "$" +
+                padded_tag + UART_separator +
+                input_source + UART_separator +
+                (pressed ? "1" : "0") +  "*";
+        Log.d("data",data);
+        ByteBuffer buffer = ByteBuffer.allocate(data.length()).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        buffer.put(data.getBytes());
+        sendDataWithCRC(buffer.array());
+        Log.d("byte data",data.getBytes().toString());
+
+    }
+    */
+
+    private void sendTouchEvent(int L_val, int R_val , int Butt_val) {
+        // New protocol for sending data, modeled after the NMEA standard
+        // $L_val,R_val,Butt_val*checksum
+        String data = "$" +
+                L_val + UART_separator +
+                R_val+ UART_separator +
+                Butt_val +
+                "*";
+        Log.d("data",data);
         ByteBuffer buffer = ByteBuffer.allocate(data.length()).order(java.nio.ByteOrder.LITTLE_ENDIAN);
         buffer.put(data.getBytes());
         sendDataWithCRC(buffer.array());

@@ -15,4 +15,9 @@
     <dimen name="activity_mqqt_edit_longtitle_width">120dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
 
+    <!-- Values for the joy stick -->
+
+    <dimen name="default_margin">4dp</dimen>
+    <dimen name="stick_size">144dp</dimen>
+
 </resources>

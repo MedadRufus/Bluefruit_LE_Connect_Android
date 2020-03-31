@@ -2,7 +2,7 @@
 <resources>
 
     <!-- General -->
-    <string name="app_name">Bluefruit LE</string>
+    <string name="app_name">Bluefruit LE Medad mods</string>
     <string name="app_full_name">Bluefruit LE Connect</string>
     <string name="action_info">Info</string>
     <string name="action_mqttsettings">MQTT</string>
@@ -436,6 +436,12 @@
     <!-- Common -->
     <string name="dialog_notice">Notice</string>
     <string name="dialog_dontshowagain">Don\'t show again</string>
+
+    <!-- Joystick -->
+    <string name="angle_value">Angle: %1$.2f</string>
+    <string name="offset_value">%1$.2f :Offset</string>
+    <string name="angle_value_none">Angle: none</string>
+    <string name="offset_value_none">none :Offset</string>
 
     <!-- Debug -->
 

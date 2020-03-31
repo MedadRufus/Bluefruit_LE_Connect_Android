@@ -37,10 +37,14 @@ public class UartInterfaceActivity extends AppCompatActivity implements BleManag
     }
 
     protected void sendData(byte[] data) {
+
+
         if (mUartService != null) {
             // Split the value into chunks (UART service has a maximum number of characters that can be written )
             for (int i = 0; i < data.length; i += kTxMaxCharacters) {
                 final byte[] chunk = Arrays.copyOfRange(data, i, Math.min(i + kTxMaxCharacters, data.length));
+
+
                 mBleManager.writeService(mUartService, UUID_TX, chunk);
             }
         } else {
@@ -51,17 +55,30 @@ public class UartInterfaceActivity extends AppCompatActivity implements BleManag
     // Send data to UART and add a byte with a custom CRC
     protected void sendDataWithCRC(byte[] data) {
 
+        // Comment on 18 June 2018: all these comments were used in figuring out the checksum scheme
+
         // Calculate checksum
         byte checksum = 0;
+        // Summation of ord values
         for (byte aData : data) {
+            //Log.d("checksum_mid",String.valueOf(aData));
+
             checksum += aData;
+            Log.d("running checksum",String.valueOf(checksum));
+
         }
+        // Log.d("non inverted checksum",String.valueOf(checksum));
         checksum = (byte) (~checksum);       // Invert
+        Log.d("final cs value in bytes",String.valueOf(checksum)); // find out why the checksum changes over
 
         // Add crc to data
         byte dataCrc[] = new byte[data.length + 1];
         System.arraycopy(data, 0, dataCrc, 0, data.length);
         dataCrc[data.length] = checksum;
+
+        Log.d("data as byte array",String.valueOf(dataCrc)); // find out why the checksum changes over
+
+        // Seems to work perfectly all the way to here
 
         // Send it
         Log.d(TAG, "Send to UART: " + BleUtils.bytesToHexWithSpaces(dataCrc));
